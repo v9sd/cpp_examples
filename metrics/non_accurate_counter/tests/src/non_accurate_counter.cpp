@@ -26,5 +26,9 @@ TEST(NonAccurateCounter, Add) {
 	current_time += std::chrono::milliseconds(200);
 	counter.add(80, current_time);
 	ASSERT_EQ(u_int64_t(counter), 95);//octave: uint64(19*0.8)+80 = 95
+
+	current_time += std::chrono::milliseconds(800);
+	counter.add(0, current_time);
+	ASSERT_EQ(u_int64_t(counter), 19);//octave: uint64(95*0.2)+0 = 19
 }
 
