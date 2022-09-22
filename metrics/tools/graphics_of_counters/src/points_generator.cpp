@@ -38,7 +38,7 @@ void PointsGenerator::timerEvent(QTimerEvent */*event*/) {
 
 		for(int j = 0; j < _counters.size(); ++j){
 			output.graphics_data[j].key[i] = time_point_double;
-			output.graphics_data[j].value[i] = (*_counters[i])(rand_v, time_point);
+			output.graphics_data[j].value[i] = (*_counters[j])(rand_v, time_point);
 		}
 	}
 	emit newPoint(std::move(output));
