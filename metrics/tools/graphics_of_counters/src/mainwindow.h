@@ -31,8 +31,12 @@ class MainWindow : public QMainWindow
 
 		void startThread();
 		void stopThread();
+
+		void updateMaxValueDiff();
 	private: //properties
 		Ui::MainWindow *ui;
 		QThread points_generator_thread;
+
+		QVector<uint64_t> mav_value_diff;
 };
 #endif // MAINWINDOW_H

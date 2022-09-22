@@ -4,17 +4,12 @@
 
 #include <non_accurate_counter.h>
 #include <accurate_counter.h>
+#include <QMetaType>
+#include <QSharedPointer>
 
-PointsGenerator::PointsGenerator(uint32_t max_vec_size, QObject *parent)
+PointsGenerator::PointsGenerator(std::initializer_list<std::shared_ptr<AbstractCounter> > counters, QObject *parent)
 	: QObject(parent),
-	  _start_point(std::chrono::steady_clock::now()),
-	  _accurate_counter(std::chrono::seconds(1), _start_point),
-	  _non_accurate_counter(std::chrono::seconds(1), _start_point),
-	  max_data_porion_size(max_vec_size < 1 ? 1 : max_vec_size) {}
-
-QVector<QString> PointsGenerator::graphicNames(){
-	return {"accurate", "non accurate"};
-}
+	  _counters(counters) {}
 
 void PointsGenerator::pause(){
 	stopTimer();
@@ -23,7 +18,7 @@ void PointsGenerator::pause(){
 
 void PointsGenerator::start(){
 	stopTimer();
-	timer_id = startTimer(250);
+	timer_id = startTimer(113);
 	emit started();
 }
 
@@ -34,19 +29,17 @@ void PointsGenerator::stop(){
 
 void PointsGenerator::timerEvent(QTimerEvent */*event*/) {
 	uint32_t max_data_amount = 1;
-	PlotData output;
-	output.append({QVector<double>(max_data_amount, 0), QVector<double>(max_data_amount, 0)});
-	output.append({QVector<double>(max_data_amount, 0), QVector<double>(max_data_amount, 0)});
+	PointsGenerator::PlotData output(_counters.size(), max_data_amount);
 
 	for(uint32_t i = 0; i < max_data_amount; ++i){
-		uint64_t value = QRandomGenerator::system()->generate64() % 10;
+		uint64_t rand_v = QRandomGenerator::system()->generate64() % 300;
 		auto time_point = std::chrono::steady_clock::now();
 		auto time_point_double = double(time_point.time_since_epoch().count());
-		output[0].first[i] = time_point_double;
-		output[0].second[i] = (uint64_t)_accurate_counter.add(value, time_point);
 
-		output[1].first[i] = time_point_double;
-		output[1].second[i] = (uint64_t)_non_accurate_counter.add(value, time_point);
+		for(int j = 0; j < _counters.size(); ++j){
+			output.graphics_data[j].key[i] = time_point_double;
+			output.graphics_data[j].value[i] = (*_counters[i])(rand_v, time_point);
+		}
 	}
 	emit newPoint(std::move(output));
 }

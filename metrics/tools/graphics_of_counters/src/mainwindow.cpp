@@ -1,7 +1,10 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 
+#include <QPair>
 
+#include <non_accurate_counter.h>
+#include <accurate_counter.h>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -18,6 +21,10 @@ MainWindow::MainWindow(QWidget *parent)
 	ui->customPlot->yAxis->setTicks(true);
 	ui->customPlot->xAxis->setRange(start_point_double, start_point_double+1);
 	ui->customPlot->yAxis->setRange(start_point_double, start_point_double+1);
+	updateMaxValueDiff();
+
+	qRegisterMetaType<PointsGenerator::PlotData>("PointsGenerator::PlotData");
+
 
 	QObject::connect(ui->playButton, &QPushButton::clicked, this, &MainWindow::btnPressed, Qt::DirectConnection);
 	QObject::connect(ui->pauseButton, &QPushButton::clicked, this, &MainWindow::btnPressed, Qt::DirectConnection);
@@ -47,7 +54,14 @@ void MainWindow::btnPressed(){
 	ui->stopButton->setEnabled(false);
 	if(static_cast<const QObject*>(ui->playButton) == btn_sender){
 		if(!points_generator_thread.isRunning()){
-			PointsGenerator * data_generator = new PointsGenerator(100);
+
+			std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
+			std::chrono::steady_clock::duration interval = std::chrono::seconds(1);
+
+			PointsGenerator * data_generator = new PointsGenerator({std::shared_ptr<PointsGenerator::AbstractCounter>(
+										new PointsGenerator::CurrentCounter<AccurateCounter>(interval, current_time)),
+									       std::shared_ptr<PointsGenerator::AbstractCounter>(
+										new PointsGenerator::CurrentCounter<NonAccurateCounter>(interval, current_time))});
 			data_generator->moveToThread(&points_generator_thread);
 
 			QObject::connect(this, &MainWindow::start, data_generator, &PointsGenerator::start, Qt::QueuedConnection);
@@ -79,30 +93,74 @@ void MainWindow::btnPressed(){
 }
 
 void MainWindow::addData(PointsGenerator::PlotData data){
-	for(int i = 0; i < data.size(); ++i){
+
+	const QPair<double, double> range_default = {std::numeric_limits<double>::max(), std::numeric_limits<double>::min()};
+
+	QPair<double, double> range_value = range_default;
+	QPair<double, double> range_key   = range_default;
+	for(int i = 0; i < data.graphics_data.size(); ++i){
 		QCPGraph * graph = ui->customPlot->graph(i);
 		if(graph == nullptr){
 			graph = ui->customPlot->addGraph();
 			graph->setLineStyle(QCPGraph::lsLine);
 			graph->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssNone, 5));
 			graph->setPen(QColor(qSin(i*1+1.2)*80+80, qSin(i*0.3+0)*80+80, qSin(i*0.3+1.5)*80+80));
+
 		}
-		graph->addData(data[i].first,data[i].second);
+		graph->addData(data.graphics_data[i].key, data.graphics_data[i].value);
+		bool found_range;
+		QCPRange range = graph->data()->valueRange(found_range);
+		if(found_range){
+			range_value.first = std::min(range.lower, range_value.first);
+			range_value.second = std::max(range.upper, range_value.second);
+		}
+		range = graph->data()->keyRange(found_range);
+		if(found_range){
+			range_key.first = std::min(range.lower, range_key.first);
+			range_key.second = std::max(range.upper, range_key.second);
+		}
+
+		if(mav_value_diff.size() == i){
+			mav_value_diff.push_back(data.graphics_data[i].diff);
+		}else{
+			mav_value_diff[i] = std::max(mav_value_diff[i], data.graphics_data[i].diff);
+		}
+
 		graph->rescaleAxes(true);
 	}
+
+	if(range_key != range_default){
+		ui->customPlot->xAxis->setRange(range_key.first, range_key.second);
+	}
+	if(range_value != range_default){
+		ui->customPlot->yAxis->setRange(range_value.first, range_value.second);
+	}
 	ui->customPlot->replot();
+	updateMaxValueDiff();
 }
+
+void MainWindow::updateMaxValueDiff(){
+	static const QString prefix = "max diff";
+	QString str_val;
+	if(mav_value_diff.size() <= 1){
+		str_val = ":-";
+	}else{
+		for(int i = 1; i < mav_value_diff.size(); ++i){
+			str_val += ":";
+			str_val += QString::number(mav_value_diff[i]);
+		}
+	}
+	ui->maximum_difference->setText(prefix + str_val);
+}
+
 
 void MainWindow::generatorDeleted(){
 	points_generator_thread.wait();
-	for(int i =0; i < ui->customPlot->graphCount(); ++i){
-		ui->customPlot->graph(i)->setData({},{});
-	}
-
-//	ui->customPlot->xAxis->setRange(0, 1);
-//	ui->customPlot->yAxis->setRange(0, 1);
+	ui->customPlot->clearGraphs();
 	ui->customPlot->replot();
 	setDefaultBtnState();
+	mav_value_diff.clear();
+	updateMaxValueDiff();
 }
 
 void MainWindow::generatorStarted(){

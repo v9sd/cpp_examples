@@ -1,5 +1,5 @@
-#ifndef _NON_ACCURATE_COUNTER_INC_FILE_H__
-#define _NON_ACCURATE_COUNTER_INC_FILE_H__
+#ifndef _ACCURATE_COUNTER_INC_FILE_H__
+#define _ACCURATE_COUNTER_INC_FILE_H__
 
 #include <chrono>
 #include <list>
