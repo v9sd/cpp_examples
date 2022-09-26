@@ -104,7 +104,11 @@ void MainWindow::addData(PointsGenerator::PlotData data){
 			graph = ui->customPlot->addGraph();
 			graph->setLineStyle(QCPGraph::lsLine);
 			graph->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssNone, 5));
-			graph->setPen(QColor(qSin(i*1+1.2)*80+80, qSin(i*0.3+0)*80+80, qSin(i*0.3+1.5)*80+80));
+			QPen pen;
+			pen.setStyle(Qt::SolidLine);
+			pen.setWidth(3);
+			pen.setColor(QColor(qSin(i)*80+80, qSin(i+M_PI)*80+80, qSin(i*0.3+1.5)*80+80));
+			graph->setPen(pen);
 
 		}
 		graph->addData(data.graphics_data[i].key, data.graphics_data[i].value);
@@ -118,12 +122,6 @@ void MainWindow::addData(PointsGenerator::PlotData data){
 		if(found_range){
 			range_key.first = std::min(range.lower, range_key.first);
 			range_key.second = std::max(range.upper, range_key.second);
-		}
-
-		if(mav_value_diff.size() == i){
-			mav_value_diff.push_back(data.graphics_data[i].diff);
-		}else{
-			mav_value_diff[i] = std::max(mav_value_diff[i], data.graphics_data[i].diff);
 		}
 
 		graph->rescaleAxes(true);

@@ -34,7 +34,6 @@ class PointsGenerator : public QObject{
 						GraphicData(QVector<double>::size_type max_data_amount) : key(max_data_amount, 0), value(max_data_amount, 0) {}
 						QVector<double> key;
 						QVector<double> value;
-						uint64_t diff = 0;
 				};
 				PlotData() = default;
 				PlotData(QVector<GraphicData>::size_type graphics_amount,
